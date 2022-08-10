@@ -34,6 +34,13 @@ func (m *SyncIdentityMap) Get(key interface{}) interface{} {
 	return value
 }
 
+func (m *SyncIdentityMap) GetByUintptr(keyPtr uintptr) interface{} {
+	m.RLock()
+	value := m.m[keyPtr]
+	m.RUnlock()
+	return value
+}
+
 func genKey(key interface{}) uintptr {
 	keyValue := reflect.ValueOf(key)
 	return keyValue.Pointer()
@@ -51,6 +58,13 @@ func (m *SyncIdentityMap) Put(key interface{}, value interface{}) {
 func (m *SyncIdentityMap) Remove(key interface{}) {
 	m.Lock()
 	keyPtr := genKey(key)
+	delete(m.m, keyPtr)
+	m.Unlock()
+}
+
+func (m *SyncIdentityMap) RemoveByUintptr(keyPtr uintptr) {
+	m.Lock()
+	// keyPtr := genKey(key)
 	delete(m.m, keyPtr)
 	m.Unlock()
 }

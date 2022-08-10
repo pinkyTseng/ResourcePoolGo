@@ -51,7 +51,7 @@ func New[T any](
 		maxIdleSize: maxIdleSize,
 		maxIdleTime: maxIdleTime,
 		MaxSize:     defaultMaxSize,
-		putIdleMtx:  &sync.Mutex{},
+		globalMtx:   &sync.RWMutex{},
 	}
 	// thePool.TotalSize = defaultTotalSize
 	// thePool.Resources = make(chan T, defaultTotalSize)
@@ -92,16 +92,18 @@ type GenericPool[T any] struct {
 	maxIdleSize int
 	maxIdleTime time.Duration
 
-	MaxSize    int
-	putIdleMtx *sync.Mutex
+	MaxSize   int
+	globalMtx *sync.RWMutex
 }
 
 func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 
+	p.globalMtx.Lock()
 	nowSize := p.activeObjects.Size() + p.idleObjects.Size()
 
 	if nowSize+1 > p.MaxSize {
-		return nil, errors.New("No more resouce can get now!!")
+		p.globalMtx.Unlock()
+		return nil, errors.New("Over Max resouces limitation now!!")
 	}
 
 	// p.TotalSize++
@@ -109,14 +111,16 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 		// if len(p.Resources) > 0 {
 		// id := p.PoolIdArr[0]
 		id := p.PoolIdArr.GetFirst()
-		res := p.idleObjects.Get(id).(PoolResource[T])
+		// res := p.idleObjects.Get(id).(PoolResource[T])
+		res := p.idleObjects.GetByUintptr(id).(PoolResource[T])
 		// res := p.ResPool[id]
 		res.timer.Stop()
 		// p.PoolIdArr = p.PoolIdArr[1:]
 		p.PoolIdArr.RemoveFirst()
 
 		// delete(p.ResPool, id)
-		p.idleObjects.Remove(id)
+		// p.idleObjects.Remove(id)
+		p.idleObjects.RemoveByUintptr(id)
 		// res := <-p.Resources
 		// res.timer.Stop()
 		go func() {
@@ -126,7 +130,10 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 				return
 			}
 
+			// p.globalMtx.Lock()
 			newResAddr, newErr := p.creator(ctx)
+			// p.globalMtx.Unlock()
+
 			// newResVal, newErr := p.creator(ctx)
 			if newErr != nil {
 				log.Fatalf("creator error: %v", newErr)
@@ -134,6 +141,7 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 
 			timer := time.NewTimer(p.maxIdleTime)
 
+			p.globalMtx.Lock()
 			// uuidValue := uuid.New()
 			// p.PoolIdArr = append(p.PoolIdArr, newResAddr)
 			theintptr := p.getPoolResourceUintptr(newResAddr)
@@ -145,6 +153,7 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 
 			// p.idleObjects.Put(newResAddr, *&newResAddr)
 			p.idleObjects.Put(newResAddr, *newResAddr)
+			p.globalMtx.Unlock()
 			// newPoolResource := PoolResource[T]{
 			// 	value: newRes,
 			// 	timer: timer,
@@ -165,14 +174,17 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 
 				// p.removeResource(uuidValue)
 
+				p.globalMtx.Lock()
 				// p.idleObjects.Remove(theintptr)
 				p.idleObjects.Remove(newResAddr)
 				p.PoolIdArr.Remove(theintptr)
+				p.globalMtx.Unlock()
 
 			}
 			// timer.Stop()
 		}()
 		// return res.value, nil
+		p.globalMtx.Unlock()
 		return &res, nil
 	} else {
 		newResAddr, newErr := p.creator(ctx)
@@ -185,6 +197,7 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 		*&newResAddr.id = theintptr
 
 		p.activeObjects.Put(newResAddr, *&newResAddr)
+		p.globalMtx.Unlock()
 		return newResAddr, nil
 	}
 	// res := new(T)
@@ -197,13 +210,15 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 // }
 
 func (p GenericPool[T]) Release(res *PoolResource[T]) {
+	p.globalMtx.Lock()
 	if p.activeObjects.Get(res) == nil {
+		p.globalMtx.Unlock()
 		return
 	} else {
 		p.activeObjects.Remove(res)
 	}
 
-	p.putIdleMtx.Lock()
+	// p.globalMtx.Lock()
 	if p.idleObjects.Size() < p.maxIdleSize {
 		// timer := time.NewTimer(p.maxIdleTime)
 		// uuidValue := uuid.New()
@@ -230,8 +245,10 @@ func (p GenericPool[T]) Release(res *PoolResource[T]) {
 				// p.removeResource(uuidValue)
 
 				// p.idleObjects.Remove(theintptr)
+				p.globalMtx.Lock()
 				p.idleObjects.Remove(res)
 				p.PoolIdArr.Remove(theintptr)
+				p.globalMtx.Unlock()
 
 			}
 
@@ -243,7 +260,7 @@ func (p GenericPool[T]) Release(res *PoolResource[T]) {
 		// 	timer: timer,
 		// }
 	}
-	p.putIdleMtx.Unlock()
+	p.globalMtx.Unlock()
 
 	// if len(p.ResPool) < p.maxIdleSize {
 	// 	timer := time.NewTimer(p.maxIdleTime)
@@ -257,11 +274,19 @@ func (p GenericPool[T]) Release(res *PoolResource[T]) {
 }
 
 func (p GenericPool[T]) NumIdle() int {
-	return p.idleObjects.Size()
+	p.globalMtx.RLock()
+	num := p.idleObjects.Size()
+	// return p.idleObjects.Size()
+	p.globalMtx.RUnlock()
+	return num
 }
 
 func (p GenericPool[T]) NumActive() int {
-	return p.activeObjects.Size()
+	p.globalMtx.RLock()
+	num := p.activeObjects.Size()
+	// return p.activeObjects.Size()
+	p.globalMtx.RUnlock()
+	return num
 }
 
 func (p GenericPool[T]) getPoolResourceUintptr(addr *PoolResource[T]) uintptr {

@@ -323,6 +323,259 @@ func TestReleaseOverLimitMG(t *testing.T) {
 
 }
 
+func TestAcquireOverLimitMG(t *testing.T) {
+	f := func(context.Context) (*PoolResource[string], error) {
+		testStr := "I am string res"
+		poolResource := &PoolResource[string]{
+			value: testStr,
+		}
+		return poolResource, nil
+	}
+
+	StringPool := New[string](
+		f,
+		3,
+		time.Second*10,
+	)
+
+	if StringPool.NumIdle() != 0 {
+		t.Errorf("NumIdle() != 0 when init")
+	}
+
+	ctx := context.Background()
+
+	var srcs []*PoolResource[string]
+
+	wg := &sync.WaitGroup{}
+	wg.Add(15)
+
+	mtx := &sync.Mutex{}
+
+	for i := 0; i < 15; i++ {
+		go func() {
+			nowsrc, err := StringPool.Acquire(ctx)
+			if err != nil {
+				// t.Errorf("Acquire() fail %v", err)
+				fmt.Printf("Acquire() fail %v\n", err)
+			} else {
+				// wg.Add(1)
+				if nowsrc.value != "I am string res" {
+					t.Errorf("Acquire() string fail %v", nowsrc.value)
+				}
+				mtx.Lock()
+				srcs = append(srcs, nowsrc)
+				mtx.Unlock()
+
+			}
+			wg.Done()
+			// mtx.Lock()
+			// srcs = append(srcs, nowsrc)
+			// mtx.Unlock()
+			// wg.Done()
+		}()
+	}
+
+	wg.Wait()
+
+	fmt.Printf("after Acquire\n")
+
+	genericPool := StringPool.(GenericPool[string])
+
+	idleCount := StringPool.NumIdle()
+	fmt.Printf("now idleCount %v\n", idleCount)
+
+	activeCount := genericPool.NumActive()
+	fmt.Printf("now activeCount %v\n", activeCount)
+
+	//src1 := srcs[0]
+
+	wg.Add(5)
+
+	for i := 0; i < 5; i++ {
+		go func(idx int) {
+			releaseAndShow(genericPool, srcs[idx])
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
+
+	idleCount = StringPool.NumIdle()
+	if idleCount != 3 {
+		t.Errorf("idleCount is %v, expected be 3\n", idleCount)
+	}
+
+}
+
+func TestAcquireThenReleaseMG(t *testing.T) {
+	f := func(context.Context) (*PoolResource[string], error) {
+		testStr := "I am string res"
+		poolResource := &PoolResource[string]{
+			value: testStr,
+		}
+		return poolResource, nil
+	}
+
+	StringPool := New[string](
+		f,
+		3,
+		time.Second*10,
+	)
+
+	if StringPool.NumIdle() != 0 {
+		t.Errorf("NumIdle() != 0 when init")
+	}
+
+	ctx := context.Background()
+
+	// var srcs []*PoolResource[string]
+
+	wg := &sync.WaitGroup{}
+	wg.Add(5)
+
+	genericPool := StringPool.(GenericPool[string])
+
+	// mtx := &sync.Mutex{}
+
+	for i := 0; i < 5; i++ {
+		go func() {
+			nowsrc, err := StringPool.Acquire(ctx)
+			if err != nil {
+				t.Errorf("Acquire() fail %v", err)
+			}
+			if nowsrc.value != "I am string res" {
+				t.Errorf("Acquire() string fail %v", nowsrc.value)
+			}
+
+			// time.Sleep(1 * time.Second)
+
+			releaseAndShow(genericPool, nowsrc)
+			// mtx.Lock()
+			// srcs = append(srcs, nowsrc)
+			// mtx.Unlock()
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+
+	// genericPool := StringPool.(GenericPool[string])
+
+	activeCount := genericPool.NumActive()
+	fmt.Printf("now activeCount %v\n", activeCount)
+
+	idleCount := StringPool.NumIdle()
+	fmt.Printf("now idleCount %v\n", idleCount)
+
+	//src1 := srcs[0]
+
+	// wg.Add(6)
+
+	// for i := 0; i < 5; i++ {
+	// 	go func(idx int) {
+	// 		releaseAndShow(genericPool, srcs[idx])
+	// 		wg.Done()
+	// 	}(i)
+	// }
+
+	// wg.Wait()
+
+	// idleCount := StringPool.NumIdle()
+	// if idleCount != 3 {
+	// 	t.Errorf("idleCount is %v, expected be 3\n", idleCount)
+	if activeCount != 0 {
+		t.Errorf("idleCount is %v, expected be 0\n", idleCount)
+	}
+
+}
+
+func TestAcquire2Release1MG(t *testing.T) {
+	f := func(context.Context) (*PoolResource[string], error) {
+		testStr := "I am string res"
+		poolResource := &PoolResource[string]{
+			value: testStr,
+		}
+		return poolResource, nil
+	}
+
+	StringPool := New[string](
+		f,
+		3,
+		time.Second*10,
+	)
+
+	if StringPool.NumIdle() != 0 {
+		t.Errorf("NumIdle() != 0 when init")
+	}
+
+	ctx := context.Background()
+
+	// var srcs []*PoolResource[string]
+
+	wg := &sync.WaitGroup{}
+	wg.Add(5)
+
+	genericPool := StringPool.(GenericPool[string])
+
+	// mtx := &sync.Mutex{}
+
+	for i := 0; i < 5; i++ {
+		go func() {
+			var srcs []*PoolResource[string]
+			// var err error
+			for i := 0; i < 2; i++ {
+				nowsrc, err := StringPool.Acquire(ctx)
+				if err != nil {
+					t.Errorf("Acquire() fail %v", err)
+				}
+				if nowsrc.value != "I am string res" {
+					t.Errorf("Acquire() string fail %v", nowsrc.value)
+				}
+				srcs = append(srcs, nowsrc)
+			}
+
+			// time.Sleep(1 * time.Second)
+
+			releaseAndShow(genericPool, srcs[0])
+			// mtx.Lock()
+			// srcs = append(srcs, nowsrc)
+			// mtx.Unlock()
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+
+	// genericPool := StringPool.(GenericPool[string])
+
+	activeCount := genericPool.NumActive()
+	fmt.Printf("now activeCount %v\n", activeCount)
+
+	idleCount := StringPool.NumIdle()
+	fmt.Printf("now idleCount %v\n", idleCount)
+
+	//src1 := srcs[0]
+
+	// wg.Add(6)
+
+	// for i := 0; i < 5; i++ {
+	// 	go func(idx int) {
+	// 		releaseAndShow(genericPool, srcs[idx])
+	// 		wg.Done()
+	// 	}(i)
+	// }
+
+	// wg.Wait()
+
+	// idleCount := StringPool.NumIdle()
+	// if idleCount != 3 {
+	// 	t.Errorf("idleCount is %v, expected be 3\n", idleCount)
+	if idleCount > 3 {
+		t.Errorf("idleCount is %v, expected be < 3\n", idleCount)
+	}
+
+}
+
 func releaseAndShow(genericPool GenericPool[string], src *PoolResource[string]) {
 	genericPool.Release(src)
 
