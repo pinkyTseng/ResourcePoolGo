@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/pinkyTseng/ResourcePoolGo/collections"
@@ -50,6 +51,7 @@ func New[T any](
 		maxIdleSize: maxIdleSize,
 		maxIdleTime: maxIdleTime,
 		MaxSize:     defaultMaxSize,
+		putIdleMtx:  &sync.Mutex{},
 	}
 	// thePool.TotalSize = defaultTotalSize
 	// thePool.Resources = make(chan T, defaultTotalSize)
@@ -90,7 +92,8 @@ type GenericPool[T any] struct {
 	maxIdleSize int
 	maxIdleTime time.Duration
 
-	MaxSize int
+	MaxSize    int
+	putIdleMtx *sync.Mutex
 }
 
 func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
@@ -200,6 +203,7 @@ func (p GenericPool[T]) Release(res *PoolResource[T]) {
 		p.activeObjects.Remove(res)
 	}
 
+	p.putIdleMtx.Lock()
 	if p.idleObjects.Size() < p.maxIdleSize {
 		// timer := time.NewTimer(p.maxIdleTime)
 		// uuidValue := uuid.New()
@@ -239,6 +243,7 @@ func (p GenericPool[T]) Release(res *PoolResource[T]) {
 		// 	timer: timer,
 		// }
 	}
+	p.putIdleMtx.Unlock()
 
 	// if len(p.ResPool) < p.maxIdleSize {
 	// 	timer := time.NewTimer(p.maxIdleTime)
