@@ -96,23 +96,26 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 			theintptr := p.getPoolResourceUintptr(newResAddr)
 			p.PoolIdArr.AddByAddr(theintptr)
 
-			*&newResAddr.id = theintptr
-			*&newResAddr.timer = timer
+			// *&newResAddr.id = theintptr
+			// *&newResAddr.timer = timer
+			newResAddr.id = theintptr
+			newResAddr.timer = timer
 
 			p.idleObjects.Put(newResAddr, *newResAddr)
 			p.globalMtx.Unlock()
 
-			select {
-			case <-timer.C:
-				fmt.Println("Acquire maxIdleTime achieved")
-				timer.Stop()
+			<-timer.C
+			// select {
+			// case <-timer.C:
+			fmt.Println("Acquire maxIdleTime achieved")
+			timer.Stop()
 
-				p.globalMtx.Lock()
-				// p.idleObjects.Remove(theintptr)
-				p.idleObjects.Remove(newResAddr)
-				p.PoolIdArr.Remove(theintptr)
-				p.globalMtx.Unlock()
-			}
+			p.globalMtx.Lock()
+			// p.idleObjects.Remove(theintptr)
+			p.idleObjects.Remove(newResAddr)
+			p.PoolIdArr.Remove(theintptr)
+			p.globalMtx.Unlock()
+			// }
 		}()
 		p.globalMtx.Unlock()
 		return &res, nil
@@ -123,8 +126,10 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 		}
 
 		theintptr := p.getPoolResourceUintptr(newResAddr)
-		*&newResAddr.id = theintptr
-		p.activeObjects.Put(newResAddr, *&newResAddr)
+		// *&newResAddr.id = theintptr
+		// p.activeObjects.Put(newResAddr, *&newResAddr)
+		newResAddr.id = theintptr
+		p.activeObjects.Put(newResAddr, newResAddr)
 		p.globalMtx.Unlock()
 		return newResAddr, nil
 	}
@@ -146,20 +151,23 @@ func (p GenericPool[T]) Release(res *PoolResource[T]) {
 		theintptr := p.getPoolResourceUintptr(res)
 		p.PoolIdArr.AddByAddr(theintptr)
 
-		*&res.id = theintptr
-		*&res.timer = timer
+		// *&res.id = theintptr
+		// *&res.timer = timer
+		res.id = theintptr
+		res.timer = timer
 		p.idleObjects.Put(res, *res)
 		go func() {
 
-			select {
-			case <-timer.C:
-				fmt.Println("Release maxIdleTime achieved")
-				timer.Stop()
-				p.globalMtx.Lock()
-				p.idleObjects.Remove(res)
-				p.PoolIdArr.Remove(theintptr)
-				p.globalMtx.Unlock()
-			}
+			<-timer.C
+			// select {
+			// case <-timer.C:
+			fmt.Println("Release maxIdleTime achieved")
+			timer.Stop()
+			p.globalMtx.Lock()
+			p.idleObjects.Remove(res)
+			p.PoolIdArr.Remove(theintptr)
+			p.globalMtx.Unlock()
+			// }
 		}()
 	}
 	p.globalMtx.Unlock()

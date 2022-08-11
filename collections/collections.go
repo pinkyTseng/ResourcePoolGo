@@ -104,7 +104,8 @@ func (m *SyncArr) Remove(item uintptr) {
 
 func (m *SyncArr) RemoveFirst() {
 	m.Lock()
-	m.arr = append(m.arr[1:])
+	// m.arr = append(m.arr[1:])
+	m.arr = m.arr[1:]
 	m.Unlock()
 }
 
