@@ -8,18 +8,30 @@ import (
 	"time"
 )
 
+func fString(context.Context) (*PoolResource[string], error) {
+	testStr := "I am string res"
+	poolResource := &PoolResource[string]{
+		value: testStr,
+	}
+	return poolResource, nil
+}
+
+func fStruct(context.Context) (*PoolResource[ConnectResource], error) {
+	connectResource := &ConnectResource{
+		connAddr: "mysql://localhost",
+		port:     3306,
+	}
+	poolResource := &PoolResource[ConnectResource]{
+		value: *connectResource,
+	}
+	return poolResource, nil
+}
+
 // I think the test case contains all unit test function
 func TestAcquireReleaseNoTimeout(t *testing.T) {
-	f := func(context.Context) (*PoolResource[string], error) {
-		testStr := "I am string res"
-		poolResource := &PoolResource[string]{
-			value: testStr,
-		}
-		return poolResource, nil
-	}
 
 	StringPool := New(
-		f,
+		fString,
 		3,
 		time.Second*10,
 	)
@@ -74,20 +86,8 @@ type ConnectResource struct {
 
 func TestStructAcquireRelease(t *testing.T) {
 
-	f := func(context.Context) (*PoolResource[ConnectResource], error) {
-		connectResource := &ConnectResource{
-			connAddr: "mysql://localhost",
-			port:     3306,
-		}
-		//testStr := "I am string res"
-		poolResource := &PoolResource[ConnectResource]{
-			value: *connectResource,
-		}
-		return poolResource, nil
-	}
-
 	StringPool := New(
-		f,
+		fStruct,
 		3,
 		time.Second*10,
 	)
@@ -135,16 +135,9 @@ func TestStructAcquireRelease(t *testing.T) {
 }
 
 func TestAcquireReleaseTimeout(t *testing.T) {
-	f := func(context.Context) (*PoolResource[string], error) {
-		testStr := "I am string res"
-		poolResource := &PoolResource[string]{
-			value: testStr,
-		}
-		return poolResource, nil
-	}
 
 	StringPool := New(
-		f,
+		fString,
 		3,
 		time.Second*10,
 	)
@@ -193,16 +186,9 @@ func TestAcquireReleaseTimeout(t *testing.T) {
 }
 
 func TestRepeatRelease(t *testing.T) {
-	f := func(context.Context) (*PoolResource[string], error) {
-		testStr := "I am string res"
-		poolResource := &PoolResource[string]{
-			value: testStr,
-		}
-		return poolResource, nil
-	}
 
 	StringPool := New(
-		f,
+		fString,
 		3,
 		time.Second*10,
 	)
@@ -235,10 +221,9 @@ func TestRepeatRelease(t *testing.T) {
 
 	src1 := srcs[0]
 
-	releaseAndShow(genericPool, src1)
-	releaseAndShow(genericPool, src1)
-	releaseAndShow(genericPool, src1)
-	releaseAndShow(genericPool, src1)
+	for i := 0; i < 4; i++ {
+		releaseAndShowGeneric(genericPool, src1)
+	}
 
 	idleCount := StringPool.NumIdle()
 	if idleCount != 1 {
@@ -248,16 +233,9 @@ func TestRepeatRelease(t *testing.T) {
 }
 
 func TestRepeatReleaseMG(t *testing.T) {
-	f := func(context.Context) (*PoolResource[string], error) {
-		testStr := "I am string res"
-		poolResource := &PoolResource[string]{
-			value: testStr,
-		}
-		return poolResource, nil
-	}
 
 	StringPool := New(
-		f,
+		fString,
 		3,
 		time.Second*10,
 	)
@@ -300,7 +278,7 @@ func TestRepeatReleaseMG(t *testing.T) {
 
 	for i := 0; i < 4; i++ {
 		go func() {
-			releaseAndShow(genericPool, src1)
+			releaseAndShowGeneric(genericPool, src1)
 			wg.Done()
 		}()
 	}
@@ -315,16 +293,9 @@ func TestRepeatReleaseMG(t *testing.T) {
 }
 
 func TestReleaseOverLimitMG(t *testing.T) {
-	f := func(context.Context) (*PoolResource[string], error) {
-		testStr := "I am string res"
-		poolResource := &PoolResource[string]{
-			value: testStr,
-		}
-		return poolResource, nil
-	}
 
 	StringPool := New(
-		f,
+		fString,
 		3,
 		time.Second*10,
 	)
@@ -369,7 +340,7 @@ func TestReleaseOverLimitMG(t *testing.T) {
 
 	for i := 0; i < 6; i++ {
 		go func(idx int) {
-			releaseAndShow(genericPool, srcs[idx])
+			releaseAndShowGeneric(genericPool, srcs[idx])
 			wg.Done()
 		}(i)
 	}
@@ -384,16 +355,9 @@ func TestReleaseOverLimitMG(t *testing.T) {
 }
 
 func TestAcquireOverLimitMG(t *testing.T) {
-	f := func(context.Context) (*PoolResource[string], error) {
-		testStr := "I am string res"
-		poolResource := &PoolResource[string]{
-			value: testStr,
-		}
-		return poolResource, nil
-	}
 
 	StringPool := New(
-		f,
+		fString,
 		3,
 		time.Second*10,
 	)
@@ -444,7 +408,7 @@ func TestAcquireOverLimitMG(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		go func(idx int) {
-			releaseAndShow(genericPool, srcs[idx])
+			releaseAndShowGeneric(genericPool, srcs[idx])
 			wg.Done()
 		}(i)
 	}
@@ -459,16 +423,9 @@ func TestAcquireOverLimitMG(t *testing.T) {
 }
 
 func TestAcquireThenReleaseMG(t *testing.T) {
-	f := func(context.Context) (*PoolResource[string], error) {
-		testStr := "I am string res"
-		poolResource := &PoolResource[string]{
-			value: testStr,
-		}
-		return poolResource, nil
-	}
 
 	StringPool := New(
-		f,
+		fString,
 		3,
 		time.Second*10,
 	)
@@ -493,8 +450,7 @@ func TestAcquireThenReleaseMG(t *testing.T) {
 			if nowsrc.value != "I am string res" {
 				t.Errorf("Acquire() string fail %v", nowsrc.value)
 			}
-			// time.Sleep(1 * time.Second)
-			releaseAndShow(genericPool, nowsrc)
+			releaseAndShowGeneric(genericPool, nowsrc)
 			wg.Done()
 		}()
 	}
@@ -513,16 +469,9 @@ func TestAcquireThenReleaseMG(t *testing.T) {
 }
 
 func TestAcquire2Release1MG(t *testing.T) {
-	f := func(context.Context) (*PoolResource[string], error) {
-		testStr := "I am string res"
-		poolResource := &PoolResource[string]{
-			value: testStr,
-		}
-		return poolResource, nil
-	}
 
 	StringPool := New(
-		f,
+		fString,
 		3,
 		time.Second*10,
 	)
@@ -551,8 +500,7 @@ func TestAcquire2Release1MG(t *testing.T) {
 				}
 				srcs = append(srcs, nowsrc)
 			}
-			// time.Sleep(1 * time.Second)
-			releaseAndShow(genericPool, srcs[0])
+			releaseAndShowGeneric(genericPool, srcs[0])
 			wg.Done()
 		}()
 	}
@@ -561,7 +509,6 @@ func TestAcquire2Release1MG(t *testing.T) {
 
 	activeCount := genericPool.NumActive()
 	fmt.Printf("now activeCount %v\n", activeCount)
-
 	idleCount := StringPool.NumIdle()
 	fmt.Printf("now idleCount %v\n", idleCount)
 
@@ -572,20 +519,9 @@ func TestAcquire2Release1MG(t *testing.T) {
 }
 
 func TestStructAcquireThenReleaseMG(t *testing.T) {
-	f := func(context.Context) (*PoolResource[ConnectResource], error) {
-		connectResource := &ConnectResource{
-			connAddr: "mysql://localhost",
-			port:     3306,
-		}
-		//testStr := "I am string res"
-		poolResource := &PoolResource[ConnectResource]{
-			value: *connectResource,
-		}
-		return poolResource, nil
-	}
 
 	StringPool := New(
-		f,
+		fStruct,
 		3,
 		time.Second*10,
 	)
@@ -610,9 +546,7 @@ func TestStructAcquireThenReleaseMG(t *testing.T) {
 			if nowsrc.value.connAddr != "mysql://localhost" {
 				t.Errorf("Acquire() connAddr fail %v", nowsrc.value.connAddr)
 			}
-			// time.Sleep(1 * time.Second)
-			// releaseAndShow(genericPool, nowsrc)
-			releaseAndShowStruct(genericPool, nowsrc)
+			releaseAndShowGeneric(genericPool, nowsrc)
 			wg.Done()
 		}()
 	}
@@ -621,7 +555,6 @@ func TestStructAcquireThenReleaseMG(t *testing.T) {
 
 	activeCount := genericPool.NumActive()
 	fmt.Printf("now activeCount %v\n", activeCount)
-
 	idleCount := StringPool.NumIdle()
 	fmt.Printf("now idleCount %v\n", idleCount)
 
@@ -630,17 +563,7 @@ func TestStructAcquireThenReleaseMG(t *testing.T) {
 	}
 }
 
-func releaseAndShow(genericPool GenericPool[string], src *PoolResource[string]) {
-	genericPool.Release(src)
-
-	idleCount := genericPool.NumIdle()
-	fmt.Printf("now idleCount %v\n", idleCount)
-
-	activeCount := genericPool.NumActive()
-	fmt.Printf("now activeCount %v\n", activeCount)
-}
-
-func releaseAndShowStruct(genericPool GenericPool[ConnectResource], src *PoolResource[ConnectResource]) {
+func releaseAndShowGeneric[T any](genericPool GenericPool[T], src *PoolResource[T]) {
 	genericPool.Release(src)
 
 	idleCount := genericPool.NumIdle()
