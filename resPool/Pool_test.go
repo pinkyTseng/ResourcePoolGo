@@ -18,7 +18,7 @@ func TestAcquireReleaseNoTimeout(t *testing.T) {
 		return poolResource, nil
 	}
 
-	StringPool := New[string](
+	StringPool := New(
 		f,
 		3,
 		time.Second*10,
@@ -86,7 +86,7 @@ func TestStructAcquireRelease(t *testing.T) {
 		return poolResource, nil
 	}
 
-	StringPool := New[ConnectResource](
+	StringPool := New(
 		f,
 		3,
 		time.Second*10,
@@ -143,7 +143,7 @@ func TestAcquireReleaseTimeout(t *testing.T) {
 		return poolResource, nil
 	}
 
-	StringPool := New[string](
+	StringPool := New(
 		f,
 		3,
 		time.Second*10,
@@ -201,7 +201,7 @@ func TestRepeatRelease(t *testing.T) {
 		return poolResource, nil
 	}
 
-	StringPool := New[string](
+	StringPool := New(
 		f,
 		3,
 		time.Second*10,
@@ -256,7 +256,7 @@ func TestRepeatReleaseMG(t *testing.T) {
 		return poolResource, nil
 	}
 
-	StringPool := New[string](
+	StringPool := New(
 		f,
 		3,
 		time.Second*10,
@@ -323,7 +323,7 @@ func TestReleaseOverLimitMG(t *testing.T) {
 		return poolResource, nil
 	}
 
-	StringPool := New[string](
+	StringPool := New(
 		f,
 		3,
 		time.Second*10,
@@ -392,7 +392,7 @@ func TestAcquireOverLimitMG(t *testing.T) {
 		return poolResource, nil
 	}
 
-	StringPool := New[string](
+	StringPool := New(
 		f,
 		3,
 		time.Second*10,
@@ -467,7 +467,7 @@ func TestAcquireThenReleaseMG(t *testing.T) {
 		return poolResource, nil
 	}
 
-	StringPool := New[string](
+	StringPool := New(
 		f,
 		3,
 		time.Second*10,
@@ -521,7 +521,7 @@ func TestAcquire2Release1MG(t *testing.T) {
 		return poolResource, nil
 	}
 
-	StringPool := New[string](
+	StringPool := New(
 		f,
 		3,
 		time.Second*10,
