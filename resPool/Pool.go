@@ -68,7 +68,7 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 
 	if nowSize+1 > p.MaxSize {
 		p.globalMtx.Unlock()
-		return nil, errors.New("Over Max resouces limitation now!!")
+		return nil, errors.New("over Max resouces limitation now")
 	}
 
 	if p.idleObjects.Size() > 0 {
