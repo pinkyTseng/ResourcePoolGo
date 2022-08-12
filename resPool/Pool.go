@@ -95,6 +95,14 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 			timer := time.NewTimer(p.maxIdleTime)
 
 			p.globalMtx.Lock()
+
+			addToIdle := p.idleObjects.Size() < p.maxIdleSize
+			if !addToIdle {
+				// fmt.Printf("Acquire add to idleObjects encouter maxIdleSize\n")
+				p.globalMtx.Unlock()
+				return
+			}
+
 			theintptr := p.getPoolResourceUintptr(newResAddr)
 			p.PoolIdArr.AddByAddr(theintptr)
 
