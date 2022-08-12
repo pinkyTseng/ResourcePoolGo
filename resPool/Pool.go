@@ -74,12 +74,10 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 	if p.idleObjects.Size() > 0 {
 		id := p.PoolIdArr.GetFirst()
 		res := p.idleObjects.GetByUintptr(id).(PoolResource[T])
-		// res := p.idleObjects.GetByUintptr(id).(*PoolResource[T])
 		res.timer.Stop()
 		p.PoolIdArr.RemoveFirst()
 		p.idleObjects.RemoveByUintptr(id)
 
-		// p.activeObjects.Put(&res, res)
 		p.activeObjects.PutByUintptr(id, res)
 
 		go func() {
@@ -100,8 +98,6 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 			theintptr := p.getPoolResourceUintptr(newResAddr)
 			p.PoolIdArr.AddByAddr(theintptr)
 
-			// *&newResAddr.id = theintptr
-			// *&newResAddr.timer = timer
 			newResAddr.id = theintptr
 			newResAddr.timer = timer
 
@@ -109,33 +105,24 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 			p.globalMtx.Unlock()
 
 			<-timer.C
-			// select {
-			// case <-timer.C:
 			fmt.Println("Acquire maxIdleTime achieved")
 			timer.Stop()
 
 			p.globalMtx.Lock()
-			// p.idleObjects.Remove(theintptr)
-			// p.idleObjects.Remove(newResAddr)
 			p.idleObjects.RemoveByUintptr(theintptr)
 			p.PoolIdArr.Remove(theintptr)
 			p.globalMtx.Unlock()
-			// }
 		}()
 		p.globalMtx.Unlock()
 		return &res, nil
-		// return res, nil
+
 	} else {
 		newResAddr, newErr := p.creator(ctx)
 		if newErr != nil {
 			log.Fatalf("creator error: %v", newErr)
 		}
-
 		theintptr := p.getPoolResourceUintptr(newResAddr)
-		// *&newResAddr.id = theintptr
-		// p.activeObjects.Put(newResAddr, *&newResAddr)
 		newResAddr.id = theintptr
-		// p.activeObjects.Put(newResAddr, newResAddr)
 		p.activeObjects.Put(newResAddr, *newResAddr)
 		p.globalMtx.Unlock()
 		return newResAddr, nil
@@ -145,39 +132,32 @@ func (p GenericPool[T]) Acquire(ctx context.Context) (*PoolResource[T], error) {
 
 func (p GenericPool[T]) Release(res *PoolResource[T]) {
 	p.globalMtx.Lock()
-	// if p.activeObjects.Get(res) == nil {
 	if p.activeObjects.GetByUintptr(res.id) == nil {
 		p.globalMtx.Unlock()
 		return
 	} else {
-		// p.activeObjects.Remove(res)
 		p.activeObjects.RemoveByUintptr(res.id)
 	}
 
-	if p.idleObjects.Size() < p.maxIdleSize {
+	nowSize := p.activeObjects.Size() + p.idleObjects.Size()
+
+	if p.idleObjects.Size() < p.maxIdleSize && nowSize+1 <= p.MaxSize {
 
 		timer := time.NewTimer(p.maxIdleTime)
 		theintptr := p.getPoolResourceUintptr(res)
 		p.PoolIdArr.AddByAddr(theintptr)
 
-		// *&res.id = theintptr
-		// *&res.timer = timer
 		res.id = theintptr
 		res.timer = timer
 		p.idleObjects.Put(res, *res)
 		go func() {
-
 			<-timer.C
-			// select {
-			// case <-timer.C:
 			fmt.Println("Release maxIdleTime achieved")
 			timer.Stop()
 			p.globalMtx.Lock()
-			// p.idleObjects.Remove(res)
 			p.idleObjects.RemoveByUintptr(theintptr)
 			p.PoolIdArr.Remove(theintptr)
 			p.globalMtx.Unlock()
-			// }
 		}()
 	}
 	p.globalMtx.Unlock()
