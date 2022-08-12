@@ -47,6 +47,12 @@ func (m *SyncIdentityMap) Put(key interface{}, value interface{}) {
 	m.Unlock()
 }
 
+func (m *SyncIdentityMap) PutByUintptr(keyPtr uintptr, value interface{}) {
+	m.Lock()
+	m.m[keyPtr] = value
+	m.Unlock()
+}
+
 func (m *SyncIdentityMap) Remove(key interface{}) {
 	m.Lock()
 	keyPtr := genKey(key)
