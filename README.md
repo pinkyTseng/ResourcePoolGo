@@ -51,6 +51,7 @@ type GenericPool[T any] struct {
     - 當Acquire被呼叫,idleObjects有resource的話直接取出最舊的返回給caller,並參考Slice動態擴容的概念,會另開一個Goroutine只要不超過MaxSize和maxIdleSize會自動呼叫creator創建一個resource object放到idleObjects中供下次快速取用
     - 當Release被呼叫,若activeObjects不含release的資源則代表重複release直接返回不做處理
     - 當Release被呼叫,resource object從activeObjects移出,只要不超過maxIdleSize放到idleObjects中,若超過則丟棄不處理
+    - 當resource object被放入idleObjects中,timer就會開始計算,當達maxIdleTime會將其從idleObjects中移除
 
 ## 本次未納入的一些想法
 - 創建資源超時取消功能,因為題目的Acquire和creator function都有Context參數,Context的一個重要功能就在能當超時時,進行一些中間資源的清理和一些處理,但是因為題目沒提到有timeout相關設定,我覺得可能相對來說不是這題目的重點專注處,避免過度設計就沒納入
@@ -58,4 +59,4 @@ type GenericPool[T any] struct {
 - 因為pool常用在有url的connection的建立和一些建立相對耗時或耗資源的物件上,有思考到將其抽象成有url和耗資源的２大類,並在其外再封裝一層以便直接使用這2大類的resource pool,但題目是要求generic resource pool且creator是讓調用者自行傳入,且原始題目是可傳入任意型別的泛型,我覺得對各別實際類型的分類封裝可能相對來說不是這題目的重點專注處且時間有限也就沒將其納入
 
 ## 執行步驟
-這work基本上是呼叫New function即可操作使用該pool,主要是執行go test來驗證pool的使用效果和正確性,因為各別function主要是new或取出或放回資源,且要配合Resource pool現在的狀態較有意義,我沒針對單獨單一function寫test case,我主要是針對一些實踐很可能會用到的使用情境及邊界狀況寫test case,另外,test case中我有考慮實際使用pool的情況絕大多數會是在多線程(協程)的環境下使用,所以我有些test case也有用Goroutine來做測試,function名以MG結尾的Test function就是有考慮並發的test case,其他的從function名應該就看得出來主要test case是要測什麼情境
+這work基本上是呼叫New function即可操作使用該pool,主要是執行go test來驗證pool的使用效果和正確性,因為各別function主要是new或取出或放回資源,且要配合Resource pool現在的狀態較有意義,我沒針對單獨單一function寫test case,我主要是針對一些實踐很可能會用到的使用情境及邊界狀況寫test case,另外,test case中我有考慮實際使用pool的情況絕大多數會是在多線程(協程)的環境下使用,所以我有些test case也有用Goroutine來做測試,function名以MG結尾的Test function就是有考慮並發的test case,其他的從function名應該就看得出來主要test case是要測什麼情境,另外,測試主要使用的2種resource型態是string和ConnectResource struct,但如上面所說,這邊的resource並沒有真的有實作DB connection的功能和較耗資源的創建操作等
