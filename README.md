@@ -32,20 +32,20 @@ type GenericPool[T any] struct {
 	maxIdleTime   time.Duration
     
     //將idle resources存入map  
-    idleObjects   *collections.SyncIdentityMap  
+    idleObjects   *collections.SyncIdentityMap 
 
     //將active(正被取用中) resources存入map,release時才能避免重複問題另外也可計算和限制pool MaxSize  
-	activeObjects *collections.SyncIdentityMap  
+    activeObjects *collections.SyncIdentityMap  
 
-	//主要是當idleObjects的queue用 會從較舊的資源先取  
+    //主要是當idleObjects的queue用 會從較舊的資源先取  
     PoolIdArr     *collections.SyncArr  
 
-	//idleObjects size + activeObjects size,主要是讓pool總量能受到限制,不然很容易會有資源爆炸的問題  
+    //idleObjects size + activeObjects size,主要是讓pool總量能受到限制,不然很容易會有資源爆炸的問題  
     MaxSize       int  
 
     //防止race condition用  
-	globalMtx     *sync.RWMutex  
-	
+    globalMtx     *sync.RWMutex  
+
 }
 ```
 
