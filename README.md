@@ -67,4 +67,4 @@ type GenericPool[T any] struct {
 
 ## 執行步驟
 這work基本上是呼叫New function即可操作使用該pool,主要是執行go test來驗證pool的使用效果和正確性,因為各別function主要是new或取出或放回資源,且要配合Resource pool現在的狀態較有意義,我沒針對單獨單一function寫test case,我主要是針對一些實踐很可能會用到的使用情境及邊界狀況寫test case,另外,test case中我有考慮實際使用pool的情況絕大多數會是在多線程(協程)的環境下使用,所以我有些test case也有用Goroutine來做測試,function名以MG結尾的Test function就是有考慮並發的test case,其他的從function名應該就看得出來主要test case是要測什麼情境,另外,測試主要使用的2種resource型態是string和ConnectResource struct,但如上面所說,這邊的resource並沒有真的有實作DB connection的功能和較耗資源的創建操作等.  
-先前工作公司和部門沒有在寫測試,這邊的test cases我是依照我自學後自己的想法寫得不確定是否寫得標準或沒考慮到的地方,這邊另外附上測試覆蓋率結果,在resPool下執行go test -cover會得到coverage: 96.3% of statements.
+因為時間關係,我整合測試包含到的一些功能的單元測試我就沒再另外寫了,這邊另外附上測試覆蓋率結果,在resPool下執行go test -cover會得到coverage: 96.3% of statements.
