@@ -29,16 +29,6 @@ func fStruct(context.Context) (ConnectResource, error) {
 	return connectResource, nil
 }
 
-// func releaseAndShowGeneric[T any](noLockPool *NoLockPool[T], src *T) {
-// 	noLockPool.Release(src)
-
-// 	idleCount := noLockPool.NumIdle()
-// 	fmt.Printf("now idleCount %v\n", idleCount)
-
-// 	activeCount := noLockPool.Getcnt()
-// 	fmt.Printf("now activeCount %v\n", activeCount)
-// }
-
 func onlyShowIdleAndActiveCounts(idle, active int) {
 	if showDetail {
 		fmt.Printf("now idleCount %v\n", idle)
@@ -271,11 +261,6 @@ func TestRepeatReleaseMG(t *testing.T) {
 				t.Errorf("Acquire() fail %v", err)
 			}
 			reslist = append(reslist, &v)
-
-			// idleCount := thePool.NumIdle()
-			// activeCount := thePool.Getcnt()
-			// validateIdleAndActiveCounts(idleCount, 0, int(activeCount), j+1, t)
-
 			wg.Done()
 		}()
 	}
@@ -292,8 +277,6 @@ func TestRepeatReleaseMG(t *testing.T) {
 
 	for i := 0; i < 4; i++ {
 		go func() {
-			// releaseAndShowGeneric(thePool, src1)
-
 			thePool.Release(src1)
 
 			idleCount := thePool.NumIdle()
@@ -360,7 +343,6 @@ func TestReleaseOverLimitMG(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		go func(idx int) {
 			thePool.Release(reslist[idx])
-			// releaseAndShowGeneric(genericPool, srcs[idx])
 			wg.Done()
 		}(i)
 	}
@@ -388,9 +370,6 @@ func TestAcquireOverLimitMG(t *testing.T) {
 	}
 
 	ctx := context.Background()
-
-	// wg := &sync.WaitGroup{}
-	// wg.Add(3)
 
 	acquireResult := make(chan *ConnectResource, 6)
 
@@ -449,9 +428,6 @@ func TestStructAcquireThenReleaseMG(t *testing.T) {
 
 	ctx := context.Background()
 
-	// wg := &sync.WaitGroup{}
-	// wg.Add(3)
-
 	acquireResult := make(chan *ConnectResource, 6)
 
 	for i := 0; i < 5; i++ {
@@ -464,12 +440,6 @@ func TestStructAcquireThenReleaseMG(t *testing.T) {
 			}
 		}()
 	}
-
-	// time.Sleep(2 * time.Second)
-
-	// idleCount := thePool.NumIdle()
-	// activeCount := thePool.Getcnt()
-	// validateIdleAndActiveCounts(idleCount, 0, int(activeCount), 3, t)
 
 	execCount := int32(0)
 	wg := &sync.WaitGroup{}
@@ -486,22 +456,12 @@ func TestStructAcquireThenReleaseMG(t *testing.T) {
 
 	wg.Wait()
 
-	// for i := 0; i < 5; i++ {
-	// 	go func() {
-	// 		nowAddr := <-acquireResult
-	// 		thePool.Release(nowAddr)
-	// 	}()
-	// }
-
-	// time.Sleep(2 * time.Second)
-
 	idleCount := thePool.NumIdle()
 	activeCount := thePool.Getcnt()
 	onlyShowIdleAndActiveCounts(idleCount, int(activeCount))
 	if activeCount != 0 {
 		t.Errorf("activeCount is %v, expected be %v\n", activeCount, 0)
 	}
-	// validateIdleAndActiveCounts(idleCount, 1, int(activeCount), 0, t)
 
 }
 
