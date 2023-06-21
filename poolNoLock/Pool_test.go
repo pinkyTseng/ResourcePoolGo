@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var showDetail = false
@@ -50,9 +52,74 @@ func validateIdleAndActiveCounts(idle, idleExp, active, activeExp int, t *testin
 	}
 }
 
-// I think the test case contains all unit test function
-// func TestAcquireReleaseNoTimeout(t *testing.T) {
-func TestAcquireRelease(t *testing.T) {
+// unit tests
+func TestNew(t *testing.T) {
+	creator := func(ctx context.Context) (int, error) {
+		return 1, nil
+	}
+
+	pool := New(creator, 10, 2*time.Second, 10, 10)
+
+	assert.NotNil(t, pool)
+	assert.Equal(t, 10, cap(pool.idleQueue))
+	assert.Equal(t, 10, cap(pool.reqQueue))
+	assert.Equal(t, 2*time.Second, pool.maxIdleTimeout)
+	assert.Equal(t, int32(10), pool.maxCnt)
+}
+
+func TestAcquireAndRelease(t *testing.T) {
+	creator := func(ctx context.Context) (int, error) {
+		return 1, nil
+	}
+
+	pool := New(creator, 10, 2*time.Second, 10, 10)
+	ctx := context.Background()
+
+	// Test Acquire
+	resource, err := pool.Acquire(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, resource)
+
+	// Test Release
+	pool.Release(&resource)
+	assert.Equal(t, 1, pool.NumIdle())
+}
+
+func TestNumIdle(t *testing.T) {
+	creator := func(ctx context.Context) (int, error) {
+		return 1, nil
+	}
+
+	pool := New(creator, 10, 2*time.Second, 10, 10)
+	ctx := context.Background()
+
+	resource, err := pool.Acquire(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, pool.NumIdle())
+
+	pool.Release(&resource)
+	assert.Equal(t, 1, pool.NumIdle())
+}
+
+func TestGetcnt(t *testing.T) {
+	creator := func(ctx context.Context) (int, error) {
+		return 1, nil
+	}
+
+	pool := New(creator, 10, 2*time.Second, 10, 10)
+	ctx := context.Background()
+
+	resource, err := pool.Acquire(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, int32(1), pool.Getcnt())
+
+	pool.Release(&resource)
+	assert.Equal(t, int32(0), pool.Getcnt())
+}
+
+// integration tests
+// I think the test case contains all test cases
+func TestBasicAcquireRelease(t *testing.T) {
 
 	thePool := New(
 		fString,
