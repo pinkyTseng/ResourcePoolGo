@@ -1,5 +1,7 @@
 # ResourcePoolGo
 
+## 更新
+由於先前的版本用了較多的lock,比較沒有善用到go的channel,新改寫後的版本在poolNoLock下,這版本除了為了避免先前提到的重複release的地方有用到lock其他地方全是無鎖化的,此外,這版本也更好的運用泛型,給user用的api interface不需如先前如下列出的再多包一層特定資料結構
 ## 主要思路
 下面列出較主要的interface, func, 和struct
 
